@@ -2,6 +2,8 @@ name = "ohirume/tojson"
 version = "0.1.0"
 description = "Convert rbxm/rbxmx files to Argon model.json format"
 license = "MIT"
+authors = ["ohirume"]
+repository = "https://github.com/0hirume/tojson"
 includes = ["pesde.toml", "src/**", "bin/**", "README.md"]
 
 [target]
