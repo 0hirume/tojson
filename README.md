@@ -16,6 +16,9 @@ tojson path/to/model.rbxm
 
 tojson path/to/model.rbxmx output.model.json
 # explicit output path
+
+tojson assets/**/*.rbxm
+# glob — each file gets its own .model.json alongside it
 ```
 
 ## Library usage
