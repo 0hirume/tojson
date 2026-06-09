@@ -1,0 +1,12 @@
+# Luau-LSP
+.docs.json
+.types.d.luau
+/sourcemap.json
+
+# Package Management
+/*packages/
+/.pesde/
+/pesde.lock
+
+# Local Environment
+/.helix/

@@ -1,0 +1,6 @@
+[tools]
+"aqua:tombi-toml/tombi" = "latest"
+"github:johnnymorganz/luau-lsp" = "latest"
+"github:johnnymorganz/stylua" = "latest"
+"github:lune-org/lune" = "latest"
+"github:pesde-pkg/pesde" = "latest"

@@ -1,0 +1,210 @@
+local roblox = require("@lune/roblox")
+
+local SKIP_TYPES: { [string]: boolean } = {
+	BinaryString = true,
+	Ref = true,
+	SecurityCapabilities = true,
+	UniqueId = true,
+}
+
+local SKIP_PROPS: { [string]: boolean } = {
+	Name = true,
+	AttributesSerialize = true,
+	SourceAssetId = true,
+	NeedsPivotMigration = true,
+	DefinesCapabilities = true,
+	ModelMeshData = true,
+	ModelMeshCFrame = true,
+	ModelMeshSize = true,
+	ModelStreamingMode = true,
+	WorldPivotData = true,
+	HistoryId = true,
+	AudioCanCollide = true,
+}
+
+local function buildClassPropertyMap(xml: string): { [string]: { [string]: string } }
+	local classProperties: { [string]: { [string]: string } } = {}
+	local classStack: { string } = {}
+
+	for line in xml:gmatch("[^\n]+") do
+		local openClass = line:match('<Item class="([^"]+)"')
+
+		if openClass ~= nil then
+			table.insert(classStack, openClass)
+
+			if classProperties[openClass] == nil then
+				classProperties[openClass] = {}
+			end
+		end
+
+		if line:match("</Item>") then
+			table.remove(classStack)
+		end
+
+		local currentClass = classStack[#classStack]
+
+		if currentClass ~= nil then
+			local xmlType, propertyName = line:match('^%s*<(%a+) name="([^"]+)"')
+
+			if
+				xmlType ~= nil
+				and propertyName ~= nil
+				and SKIP_TYPES[xmlType] == nil
+				and SKIP_PROPS[propertyName] == nil
+			then
+				classProperties[currentClass][propertyName] = xmlType
+			end
+		end
+	end
+
+	return classProperties
+end
+
+local function serializeValue(value: unknown, xmlType: string): unknown
+	if typeof(value) == "boolean" or typeof(value) == "number" or typeof(value) == "string" then
+		return value
+	elseif typeof(value) == "Vector3" then
+		return { value.X, value.Y, value.Z }
+	elseif typeof(value) == "Vector2" then
+		return { value.X, value.Y }
+	elseif typeof(value) == "Vector3int16" then
+		return { value.X, value.Y, value.Z }
+	elseif typeof(value) == "Vector2int16" then
+		return { value.X, value.Y }
+	elseif typeof(value) == "CFrame" then
+		local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = value:GetComponents()
+		return { x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 }
+	elseif typeof(value) == "Color3" then
+		if xmlType == "Color3uint8" then
+			return { math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255) }
+		else
+			return { value.R, value.G, value.B }
+		end
+	elseif typeof(value) == "ColorSequence" then
+		local keypoints = {}
+
+		for _, keypoint in value.Keypoints do
+			table.insert(
+				keypoints,
+				{ time = keypoint.Time, color = { keypoint.Value.R, keypoint.Value.G, keypoint.Value.B } }
+			)
+		end
+
+		return keypoints
+	elseif typeof(value) == "NumberSequence" then
+		local keypoints = {}
+
+		for _, keypoint in value.Keypoints do
+			table.insert(keypoints, { time = keypoint.Time, value = keypoint.Value, envelope = keypoint.Envelope })
+		end
+
+		return keypoints
+	elseif typeof(value) == "EnumItem" then
+		return value.Name
+	elseif typeof(value) == "BrickColor" then
+		return value.Number
+	elseif typeof(value) == "UDim2" then
+		return { value.X.Scale, value.X.Offset, value.Y.Scale, value.Y.Offset }
+	elseif typeof(value) == "UDim" then
+		return { value.Scale, value.Offset }
+	elseif typeof(value) == "NumberRange" then
+		return { value.Min, value.Max }
+	elseif typeof(value) == "Rect" then
+		return { value.Min.X, value.Min.Y, value.Max.X, value.Max.Y }
+	elseif typeof(value) == "Ray" then
+		return {
+			{ value.Origin.X, value.Origin.Y, value.Origin.Z },
+			{ value.Direction.X, value.Direction.Y, value.Direction.Z },
+		}
+	elseif typeof(value) == "Region3" then
+		local min = value.CFrame.Position - value.Size / 2
+		local max = value.CFrame.Position + value.Size / 2
+		return { { min.X, min.Y, min.Z }, { max.X, max.Y, max.Z } }
+	elseif typeof(value) == "Region3int16" then
+		return { { value.Min.X, value.Min.Y, value.Min.Z }, { value.Max.X, value.Max.Y, value.Max.Z } }
+	elseif typeof(value) == "Font" then
+		return { family = value.Family, weight = value.Weight.Name, style = value.Style.Name }
+	elseif typeof(value) == "PhysicalProperties" then
+		return {
+			density = value.Density,
+			friction = value.Friction,
+			elasticity = value.Elasticity,
+			frictionWeight = value.FrictionWeight,
+			elasticityWeight = value.ElasticityWeight,
+		}
+	elseif typeof(value) == "Content" then
+		return tostring(value)
+	else
+		return nil
+	end
+end
+
+local function serializeInstance(
+	instance: Instance,
+	classProperties: { [string]: { [string]: string } }
+): { [string]: unknown }
+	local result: { [string]: unknown } = {
+		ClassName = instance.ClassName,
+		Name = instance.Name,
+	}
+
+	local propertyMap = classProperties[instance.ClassName]
+
+	if propertyMap ~= nil then
+		local properties: { [string]: unknown } = {}
+
+		for propertyName, xmlType in propertyMap do
+			local ok, value = pcall(function()
+				return (instance :: any)[propertyName]
+			end)
+
+			if ok and value ~= nil then
+				local serialized = serializeValue(value, xmlType)
+
+				if serialized ~= nil then
+					properties[propertyName] = serialized
+				end
+			end
+		end
+
+		if next(properties) ~= nil then
+			result.Properties = properties
+		end
+	end
+
+	local children: { { [string]: unknown } } = {}
+
+	for _, child in instance:GetChildren() do
+		table.insert(children, serializeInstance(child, classProperties))
+	end
+
+	if #children > 0 then
+		result.Children = children
+	end
+
+	return result
+end
+
+local function convert(roots: { Instance }): { [string]: unknown } | { { [string]: unknown } }
+	local classProperties = buildClassPropertyMap(roblox.serializeModel(roots, true))
+
+	if #roots == 1 then
+		local result = serializeInstance(roots[1], classProperties)
+		result.Name = nil
+		return result
+	else
+		local array: { { [string]: unknown } } = {}
+
+		for _, root in roots do
+			table.insert(array, serializeInstance(root, classProperties))
+		end
+
+		return array
+	end
+end
+
+export type ConvertResult = { [string]: unknown } | { { [string]: unknown } }
+
+return {
+	convert = convert,
+}

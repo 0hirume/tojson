@@ -1,0 +1,13 @@
+name = "ohirume/tojson"
+version = "0.1.0"
+description = "Convert rbxm/rbxmx files to Argon model.json format"
+license = "MIT"
+includes = ["pesde.toml", "src/**", "bin/**", "README.md"]
+
+[target]
+environment = "lune"
+lib = "src/init.luau"
+bin = "bin/tojson.luau"
+
+[indices]
+default = "https://github.com/pesde-pkg/index"
