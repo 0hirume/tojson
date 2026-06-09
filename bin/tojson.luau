@@ -1,6 +1,5 @@
 local fs = require("@lune/fs")
 local process = require("@lune/process")
-local serde = require("@lune/serde")
 
 local tojson = require("../src")
 
@@ -22,4 +21,4 @@ if #roots == 0 then
 	process.exit(1)
 end
 
-fs.writeFile(outputPath, serde.encode("json", tojson.convert(roots), true))
+fs.writeFile(outputPath, tojson.encodeJson(tojson.convert(roots), 0))
