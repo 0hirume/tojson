@@ -2,7 +2,7 @@ local fs = require("@lune/fs")
 local process = require("@lune/process")
 local serde = require("@lune/serde")
 
-local tojson = require("../src/init")
+local tojson = require("../src")
 
 local inputPath = process.args[1]
 
