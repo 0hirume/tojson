@@ -1,5 +1,5 @@
 name = "ohirume/tojson"
-version = "0.2.0"
+version = "0.2.1"
 description = "Convert rbxm/rbxmx files to Argon model.json format"
 license = "MIT"
 authors = ["ohirume"]
