@@ -9,17 +9,9 @@ local SKIP_TYPES = {
 
 local SKIP_PROPS = {
     Name = true,
-    AttributesSerialize = true,
+    LocalizationMatchIdentifier = true,
+    LocalizationMatchedSourceText = true,
     SourceAssetId = true,
-    NeedsPivotMigration = true,
-    DefinesCapabilities = true,
-    ModelMeshData = true,
-    ModelMeshCFrame = true,
-    ModelMeshSize = true,
-    ModelStreamingMode = true,
-    WorldPivotData = true,
-    HistoryId = true,
-    AudioCanCollide = true,
 }
 
 local function buildClassPropertyMap(xml: string): { [string]: { [string]: boolean } }
