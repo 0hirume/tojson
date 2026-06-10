@@ -44,7 +44,7 @@ local function buildClassPropertyMap(xml: string): { [string]: { [string]: strin
         local currentClass = classStack[#classStack]
 
         if currentClass ~= nil then
-            local xmlType, propertyName = line:match('^%s*<(%a+) name="([^"]+)"')
+            local xmlType, propertyName = line:match('^%s*<(%a[%w]*) name="([^"]+)"')
 
             if xmlType ~= nil and propertyName ~= nil and SKIP_TYPES[xmlType] == nil and SKIP_PROPS[propertyName] == nil then
                 classProperties[currentClass][propertyName] = xmlType
@@ -70,11 +70,7 @@ local function serializeValue(value: unknown, xmlType: string): unknown
         local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = value:GetComponents()
         return { x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 }
     elseif typeof(value) == "Color3" then
-        if xmlType == "Color3uint8" then
-            return { math.round(value.R * 255), math.round(value.G * 255), math.round(value.B * 255) }
-        else
-            return { value.R, value.G, value.B }
-        end
+        return { value.R, value.G, value.B }
     elseif typeof(value) == "ColorSequence" then
         local keypoints = {}
 
@@ -96,7 +92,7 @@ local function serializeValue(value: unknown, xmlType: string): unknown
     elseif typeof(value) == "BrickColor" then
         return value.Number
     elseif typeof(value) == "UDim2" then
-        return { value.X.Scale, value.X.Offset, value.Y.Scale, value.Y.Offset }
+        return { { value.X.Scale, value.X.Offset }, { value.Y.Scale, value.Y.Offset } }
     elseif typeof(value) == "UDim" then
         return { value.Scale, value.Offset }
     elseif typeof(value) == "NumberRange" then
@@ -125,10 +121,25 @@ local function serializeValue(value: unknown, xmlType: string): unknown
             elasticityWeight = value.ElasticityWeight,
         }
     elseif typeof(value) == "Content" then
-        return tostring(value)
+        return value.Uri
     else
         return nil
     end
+end
+
+local function applyOverrides(instance: Instance, properties: { [string]: unknown }): { [string]: unknown }
+    local overridden = table.clone(properties)
+
+    if instance:IsA("UICorner") then
+        local scale, offset =
+            roblox.serializeModel({ instance }, true):match('<UDim name="TopLeftRadius">%s*<S>([^<]+)</S>%s*<O>([^<]+)</O>')
+
+        if scale ~= nil and offset ~= nil then
+            overridden.CornerRadius = { tonumber(scale), tonumber(offset) }
+        end
+    end
+
+    return overridden
 end
 
 local function serializeInstance(instance: Instance, classProperties: { [string]: { [string]: string } }): { [string]: unknown }
@@ -138,13 +149,12 @@ local function serializeInstance(instance: Instance, classProperties: { [string]
     }
 
     local propertyMap = classProperties[instance.ClassName]
+    local properties: { [string]: unknown } = {}
 
     if propertyMap ~= nil then
-        local properties: { [string]: unknown } = {}
-
         for propertyName, xmlType in propertyMap do
             local ok, value = pcall(function()
-                return (instance :: any)[propertyName]
+                return instance[propertyName]
             end)
 
             if ok and value ~= nil then
@@ -155,10 +165,12 @@ local function serializeInstance(instance: Instance, classProperties: { [string]
                 end
             end
         end
+    end
 
-        if next(properties) ~= nil then
-            result.Properties = properties
-        end
+    properties = applyOverrides(instance, properties)
+
+    if next(properties) ~= nil then
+        result.Properties = properties
     end
 
     local children: { { [string]: unknown } } = {}
