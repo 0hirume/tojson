@@ -22,7 +22,7 @@ local SKIP_PROPS = {
     AudioCanCollide = true,
 }
 
-local function buildClassPropertyMap(xml: string): { [string]: { [string]: string } }
+local function buildClassPropertyMap(xml: string): { [string]: { [string]: boolean } }
     local classProperties = {}
     local classStack = {}
 
@@ -47,7 +47,7 @@ local function buildClassPropertyMap(xml: string): { [string]: { [string]: strin
             local xmlType, propertyName = line:match('^%s*<(%a[%w]*) name="([^"]+)"')
 
             if xmlType ~= nil and propertyName ~= nil and SKIP_TYPES[xmlType] == nil and SKIP_PROPS[propertyName] == nil then
-                classProperties[currentClass][propertyName] = xmlType
+                classProperties[currentClass][propertyName] = true
             end
         end
     end
@@ -55,7 +55,7 @@ local function buildClassPropertyMap(xml: string): { [string]: { [string]: strin
     return classProperties
 end
 
-local function serializeValue(value: unknown, xmlType: string): unknown
+local function serializeValue(value: unknown): unknown
     if typeof(value) == "boolean" or typeof(value) == "number" or typeof(value) == "string" then
         return value
     elseif typeof(value) == "Vector3" then
@@ -142,7 +142,7 @@ local function applyOverrides(instance: Instance, properties: { [string]: unknow
     return overridden
 end
 
-local function serializeInstance(instance: Instance, classProperties: { [string]: { [string]: string } }): { [string]: unknown }
+local function serializeInstance(instance: Instance, classProperties: { [string]: { [string]: boolean } }): { [string]: unknown }
     local result = {
         ClassName = instance.ClassName,
         Name = instance.Name,
@@ -152,13 +152,13 @@ local function serializeInstance(instance: Instance, classProperties: { [string]
     local properties = {}
 
     if propertyMap ~= nil then
-        for propertyName, xmlType in propertyMap do
+        for propertyName in propertyMap do
             local ok, value = pcall(function()
                 return instance[propertyName]
             end)
 
             if ok and value ~= nil then
-                local serialized = serializeValue(value, xmlType)
+                local serialized = serializeValue(value)
 
                 if serialized ~= nil then
                     properties[propertyName] = serialized
