@@ -1,13 +1,13 @@
 local roblox = require("@lune/roblox")
 
-local SKIP_TYPES: { [string]: boolean } = {
+local SKIP_TYPES = {
     BinaryString = true,
     Ref = true,
     SecurityCapabilities = true,
     UniqueId = true,
 }
 
-local SKIP_PROPS: { [string]: boolean } = {
+local SKIP_PROPS = {
     Name = true,
     AttributesSerialize = true,
     SourceAssetId = true,
@@ -23,8 +23,8 @@ local SKIP_PROPS: { [string]: boolean } = {
 }
 
 local function buildClassPropertyMap(xml: string): { [string]: { [string]: string } }
-    local classProperties: { [string]: { [string]: string } } = {}
-    local classStack: { string } = {}
+    local classProperties = {}
+    local classStack = {}
 
     for line in xml:gmatch("[^\n]+") do
         local openClass = line:match('<Item class="([^"]+)"')
@@ -143,13 +143,13 @@ local function applyOverrides(instance: Instance, properties: { [string]: unknow
 end
 
 local function serializeInstance(instance: Instance, classProperties: { [string]: { [string]: string } }): { [string]: unknown }
-    local result: { [string]: unknown } = {
+    local result = {
         ClassName = instance.ClassName,
         Name = instance.Name,
     }
 
     local propertyMap = classProperties[instance.ClassName]
-    local properties: { [string]: unknown } = {}
+    local properties = {}
 
     if propertyMap ~= nil then
         for propertyName, xmlType in propertyMap do
@@ -173,7 +173,7 @@ local function serializeInstance(instance: Instance, classProperties: { [string]
         result.Properties = properties
     end
 
-    local children: { { [string]: unknown } } = {}
+    local children = {}
 
     for _, child in instance:GetChildren() do
         table.insert(children, serializeInstance(child, classProperties))
@@ -194,7 +194,7 @@ local function convert(roots: { Instance }): { [string]: unknown } | { { [string
         result.Name = nil
         return result
     else
-        local array: { { [string]: unknown } } = {}
+        local array = {}
 
         for _, root in roots do
             table.insert(array, serializeInstance(root, classProperties))
@@ -204,7 +204,7 @@ local function convert(roots: { Instance }): { [string]: unknown } | { { [string
     end
 end
 
-local INSTANCE_KEY_ORDER: { [string]: number } = {
+local INSTANCE_KEY_ORDER = {
     ClassName = 1,
     Name = 2,
     Properties = 3,
@@ -237,7 +237,7 @@ local function encodeJson(value: unknown, depth: number): string
 
             return "[\n" .. table.concat(parts, ",\n") .. "\n" .. indent .. "]"
         else
-            local keys: { string } = {}
+            local keys = {}
 
             for key: string in value do
                 table.insert(keys, key)
